@@ -20,6 +20,11 @@ const CATEGORIES = [
   { name: 'Pest Control', slug: 'pest-control', icon: 'pest', description: 'Cockroach, mosquito, rodent and termite control.', order: 8 }
 ];
 
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@gmail.com';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'm115@224';
+const CUSTOMER_PASSWORD = process.env.DEMO_CUSTOMER_PASSWORD || 'Customer@123';
+const PROVIDER_PASSWORD = process.env.DEMO_PROVIDER_PASSWORD || 'Provider@123';
+
 const seed = async () => {
   await connectDB();
   console.log('Seeding rich dummy test data for Urban Company portal...'.cyan);
@@ -37,27 +42,27 @@ const seed = async () => {
     return found ? found._id : categoryDocs[0]._id;
   };
 
-  // 2. Admin User (admin@gmail.com / m115@224)
-  let admin = await User.findOne({ email: 'admin@gmail.com' });
+  // 2. Admin User
+  let admin = await User.findOne({ email: ADMIN_EMAIL });
   if (!admin) {
     admin = await User.create({
       name: 'System Operations Admin',
-      email: 'admin@gmail.com',
-      password: 'm115@224',
+      email: ADMIN_EMAIL,
+      password: ADMIN_PASSWORD,
       role: 'admin'
     });
-    console.log('Created Admin account: admin@gmail.com / m115@224'.green);
+    console.log(`Created Admin account: ${ADMIN_EMAIL}`.green);
   } else {
-    admin.password = 'm115@224';
+    admin.password = ADMIN_PASSWORD;
     await admin.save();
-    console.log('Verified Admin account: admin@gmail.com / m115@224'.yellow);
+    console.log(`Verified Admin account: ${ADMIN_EMAIL}`.yellow);
   }
 
   // 3. Customer Accounts
   const CUSTOMERS_DATA = [
-    { name: 'Urban Customer', email: 'customer@gmail.com', password: 'Customer@123' },
-    { name: 'Priya Sharma', email: 'priya.sharma@gmail.com', password: 'Customer@123' },
-    { name: 'Rohit Verma', email: 'rohit.verma@gmail.com', password: 'Customer@123' }
+    { name: 'Urban Customer', email: 'customer@gmail.com', password: CUSTOMER_PASSWORD },
+    { name: 'Priya Sharma', email: 'priya.sharma@gmail.com', password: CUSTOMER_PASSWORD },
+    { name: 'Rohit Verma', email: 'rohit.verma@gmail.com', password: CUSTOMER_PASSWORD }
   ];
 
   const customerUsers = [];
@@ -80,7 +85,7 @@ const seed = async () => {
     // ── PLUMBING ──────────────────────────────────────────────────────
     {
       name: 'Rahul Sharma',
-      email: 'rahul.plumber@example.com', password: 'Provider@123',
+      email: 'rahul.plumber@example.com', password: PROVIDER_PASSWORD,
       phone: '+91 98765 11111', city: 'Vijayawada', address: 'Plot 45, PVR Ripples Road',
       categories: [getCatId('plumbing'), getCatId('electrical')],
       skills: ['Pipe Leak Repair', 'Switchboard Wiring', 'Geyser Installation', 'Tap Fitting'],
@@ -91,7 +96,7 @@ const seed = async () => {
     },
     {
       name: 'Mohan Plumbing Works',
-      email: 'mohan.plumb@example.com', password: 'Provider@123',
+      email: 'mohan.plumb@example.com', password: PROVIDER_PASSWORD,
       phone: '+91 98123 11222', city: 'Vijayawada', address: 'Governorpet, Vijayawada',
       categories: [getCatId('plumbing')],
       skills: ['Drainage Unblocking', 'Bathroom Fitting', 'Overhead Tank Repair', 'Shower Installation'],
@@ -104,7 +109,7 @@ const seed = async () => {
     // ── ELECTRICAL ───────────────────────────────────────────────────
     {
       name: 'Kiran Electrician',
-      email: 'kiran.electrician@example.com', password: 'Provider@123',
+      email: 'kiran.electrician@example.com', password: PROVIDER_PASSWORD,
       phone: '+91 98765 66666', city: 'Vijayawada', address: 'Near Benz Circle',
       categories: [getCatId('electrical')],
       skills: ['MCB Tripping Repair', 'Short Circuit Fix', 'Fan Installation', 'Inverter Wiring'],
@@ -115,7 +120,7 @@ const seed = async () => {
     },
     {
       name: 'Srinivas Electrical Works',
-      email: 'srini.elec@example.com', password: 'Provider@123',
+      email: 'srini.elec@example.com', password: PROVIDER_PASSWORD,
       phone: '+91 90123 44556', city: 'Vijayawada', address: 'MG Road, Vijayawada',
       categories: [getCatId('electrical')],
       skills: ['Smart MCB Fitting', 'CCTV Wiring', 'LED Light Installation', 'Ceiling Fan Replacement'],
@@ -128,7 +133,7 @@ const seed = async () => {
     // ── AC & APPLIANCE REPAIR ────────────────────────────────────────
     {
       name: 'Venkat AC Specialist',
-      email: 'venkat.ac@example.com', password: 'Provider@123',
+      email: 'venkat.ac@example.com', password: PROVIDER_PASSWORD,
       phone: '+91 98765 77777', city: 'Vijayawada', address: 'MG Road Center',
       categories: [getCatId('ac-appliance-repair')],
       skills: ['Foam-Jet AC Service', 'Copper Pipe Gas Charging', 'PCB Board Repair', 'Split AC Installation'],
@@ -139,7 +144,7 @@ const seed = async () => {
     },
     {
       name: 'Ravi Appliance Care',
-      email: 'ravi.appliance@example.com', password: 'Provider@123',
+      email: 'ravi.appliance@example.com', password: PROVIDER_PASSWORD,
       phone: '+91 91234 77889', city: 'Vijayawada', address: 'Benz Circle Extension',
       categories: [getCatId('ac-appliance-repair')],
       skills: ['Refrigerator Gas Recharge', 'Washing Machine Repair', 'Microwave Oven Fix', 'Water Purifier Service'],
@@ -152,7 +157,7 @@ const seed = async () => {
     // ── HOME CLEANING ────────────────────────────────────────────────
     {
       name: 'Meena House Cleaning',
-      email: 'meena.cleaning@example.com', password: 'Provider@123',
+      email: 'meena.cleaning@example.com', password: PROVIDER_PASSWORD,
       phone: '+91 98765 88888', city: 'Vijayawada', address: 'Governorpet, Vijayawada',
       categories: [getCatId('home-cleaning')],
       skills: ['Full Home Deep Cleaning', 'Kitchen Degreasing', 'Bathroom Scrubbing', 'Sofa Shampooing'],
@@ -163,7 +168,7 @@ const seed = async () => {
     },
     {
       name: 'CleanPro Services',
-      email: 'cleanpro@example.com', password: 'Provider@123',
+      email: 'cleanpro@example.com', password: PROVIDER_PASSWORD,
       phone: '+91 92345 88901', city: 'Vijayawada', address: 'PVR Ripples Road, Vijayawada',
       categories: [getCatId('home-cleaning')],
       skills: ['Bathroom Tile Scrubbing', 'Sofa Dry Cleaning', 'Mattress Disinfection', 'Window Glass Cleaning'],
@@ -176,7 +181,7 @@ const seed = async () => {
     // ── BEAUTY & SALON ───────────────────────────────────────────────
     {
       name: 'Anita Rao',
-      email: 'anita.beauty@example.com', password: 'Provider@123',
+      email: 'anita.beauty@example.com', password: PROVIDER_PASSWORD,
       phone: '+91 98765 22222', city: 'Vijayawada', address: 'Benz Circle, Vijayawada',
       categories: [getCatId('beauty-salon')],
       skills: ['Pedicure & Manicure', 'Facial & Cleanup', 'Hair Care & Styling', 'Bridal Makeup'],
@@ -187,7 +192,7 @@ const seed = async () => {
     },
     {
       name: 'Divya Beauty Studio',
-      email: 'divya.beauty@example.com', password: 'Provider@123',
+      email: 'divya.beauty@example.com', password: PROVIDER_PASSWORD,
       phone: '+91 93456 22333', city: 'Vijayawada', address: 'MG Road, Vijayawada',
       categories: [getCatId('beauty-salon')],
       skills: ['RICA Waxing', 'Keratin Hair Treatment', 'D-Tan Cleanup', 'Eyebrow Threading'],
@@ -198,7 +203,7 @@ const seed = async () => {
     },
     {
       name: 'Preethi Salon at Home',
-      email: 'preethi.salon@example.com', password: 'Provider@123',
+      email: 'preethi.salon@example.com', password: PROVIDER_PASSWORD,
       phone: '+91 94567 33444', city: 'Vijayawada', address: 'Governorpet Extension',
       categories: [getCatId('beauty-salon')],
       skills: ["Men's Haircut & Grooming", "Head Massage", "Anti-Dandruff Treatment", "Beard Trim & Style"],
@@ -211,7 +216,7 @@ const seed = async () => {
     // ── PEST CONTROL ─────────────────────────────────────────────────
     {
       name: 'Sunil Pest Experts',
-      email: 'sunil.pest@example.com', password: 'Provider@123',
+      email: 'sunil.pest@example.com', password: PROVIDER_PASSWORD,
       phone: '+91 98765 54321', city: 'Vijayawada', address: 'Governorpet',
       categories: [getCatId('pest-control')],
       skills: ['Odorless Cockroach Gel', 'Termite Treatment', 'Bed Bug Heat Treatment', 'Ant Control'],
@@ -224,7 +229,7 @@ const seed = async () => {
     // ── PAINTING ─────────────────────────────────────────────────────
     {
       name: 'Prakash Painter',
-      email: 'prakash.painter@example.com', password: 'Provider@123',
+      email: 'prakash.painter@example.com', password: PROVIDER_PASSWORD,
       phone: '+91 98765 99999', city: 'Vijayawada', address: 'PVR Ripples, Vijayawada',
       categories: [getCatId('painting')],
       skills: ['Waterproof Coating', 'Asian Paints Texture', 'Interior Room Polish', 'Wall Putty Finish'],
@@ -237,7 +242,7 @@ const seed = async () => {
     // ── CARPENTRY ────────────────────────────────────────────────────
     {
       name: 'Ramesh Woodworks',
-      email: 'ramesh.carpenter@example.com', password: 'Provider@123',
+      email: 'ramesh.carpenter@example.com', password: PROVIDER_PASSWORD,
       phone: '+91 98765 12345', city: 'Vijayawada', address: 'Benz Circle, Vijayawada',
       categories: [getCatId('carpentry')],
       skills: ['Custom Wardrobe Repair', 'Door Lock Installation', 'Modular Kitchen Hinge Fix', 'TV Unit Assembly'],
@@ -250,7 +255,7 @@ const seed = async () => {
     // ── PENDING / REJECTED / DRAFT (for admin demo) ───────────────────
     {
       name: 'Suresh Kumar',
-      email: 'suresh.ac@example.com', password: 'Provider@123',
+      email: 'suresh.ac@example.com', password: PROVIDER_PASSWORD,
       phone: '+91 98765 33333', city: 'Vijayawada', address: 'Door 12-4, Benz Circle',
       categories: [getCatId('ac-appliance-repair')],
       skills: ['Foam-jet AC Service', 'Gas Leakage Fix', 'Compressor Repair', 'Washing Machine Servicing'],
@@ -260,7 +265,7 @@ const seed = async () => {
     },
     {
       name: 'Vikram Singh',
-      email: 'vikram.clean@example.com', password: 'Provider@123',
+      email: 'vikram.clean@example.com', password: PROVIDER_PASSWORD,
       phone: '+91 98765 44444', city: 'Vijayawada', address: 'Governorpet',
       categories: [getCatId('home-cleaning'), getCatId('pest-control')],
       skills: ['Bathroom Deep Cleaning', 'Sofa Shampooing', 'Cockroach Control'],
@@ -272,7 +277,7 @@ const seed = async () => {
     },
     {
       name: 'Amit Patel',
-      email: 'amit.carpenter@example.com', password: 'Provider@123',
+      email: 'amit.carpenter@example.com', password: PROVIDER_PASSWORD,
       phone: '+91 98765 55555', city: 'Vijayawada', address: 'MG Road, Vijayawada',
       categories: [getCatId('carpentry')],
       skills: ['Furniture Assembly', 'Door Lock Fitting', 'Cabinet Repair'],
@@ -416,12 +421,10 @@ const seed = async () => {
   console.log('\n======================================================'.yellow.bold);
   console.log('🎉 DUMMY TEST DATA SEEDING COMPLETE!'.green.bold);
   console.log('======================================================'.yellow.bold);
-  console.log('🔑 Credentials Summary:');
-  console.log('  🛡️ Admin Login:     admin@gmail.com         / m115@224');
-  console.log('  👤 Customer Login:  customer@gmail.com      / Customer@123');
-  console.log('  🟢 Approved Partner: rahul.plumber@example.com / Provider@123');
-  console.log('  🟡 Pending Partner:  suresh.ac@example.com   / Provider@123');
-  console.log('  🔴 Rejected Partner: vikram.clean@example.com / Provider@123');
+  console.log('🔑 Credentials Configured via Environment Variables:');
+  console.log(`  🛡️ Admin Login:     ${ADMIN_EMAIL}`);
+  console.log('  👤 Customer Login:  customer@gmail.com');
+  console.log('  🟢 Approved Partner: rahul.plumber@example.com');
   console.log('======================================================\n'.yellow.bold);
 
   process.exit(0);

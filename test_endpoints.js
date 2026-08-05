@@ -50,10 +50,12 @@ const runTests = async () => {
 
   try {
     // Authenticate Admin
-    console.log('0️⃣ Logging in Admin (admin@gmail.com)...');
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@gmail.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'm115@224';
+    console.log(`0️⃣ Logging in Admin (${adminEmail})...`);
     const authRes = await request('/auth/login', {
       method: 'POST',
-      body: { email: 'admin@gmail.com', password: 'm115@224' }
+      body: { email: adminEmail, password: adminPassword }
     });
     const token = authRes.body?.token;
     console.log(`   Status: ${authRes.status} | Token Generated: ${token ? 'YES' : 'NO'}`);
