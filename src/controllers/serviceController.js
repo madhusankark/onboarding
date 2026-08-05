@@ -1,4 +1,5 @@
 const ServiceItem = require('../models/ServiceItem');
+const Category = require('../models/Category');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 
@@ -28,20 +29,31 @@ const getAdminServices = asyncHandler(async (req, res) => {
  * @access  Private (Admin)
  */
 const createService = asyncHandler(async (req, res) => {
-  const { name, category, price, originalPrice, time, rating, description, img } = req.body;
+  const { name, category, section, itemType, price, originalPrice, time, rating, description, img, inclusions } = req.body;
   if (!name || !category || price === undefined) {
     throw new ApiError(400, 'Name, category, and price are required.');
   }
 
+  // Ensure category exists in Category collection
+  const slug = category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+  await Category.findOneAndUpdate(
+    { slug },
+    { $setOnInsert: { name: category, slug, icon: 'appliance', description: `${category} Services & Products`, order: 99 } },
+    { upsert: true, new: true }
+  );
+
   const service = await ServiceItem.create({
     name,
     category,
+    section: section || 'general',
+    itemType: itemType || 'service',
     price: Number(price),
     originalPrice: originalPrice ? Number(originalPrice) : Number(price) + 100,
     time: time || '1 hr',
     rating: rating || '4.85',
     description: description || '',
     img: img || 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=400&q=80',
+    inclusions: Array.isArray(inclusions) ? inclusions : (inclusions ? [inclusions] : []),
     isActive: true
   });
 
@@ -57,7 +69,7 @@ const updateService = asyncHandler(async (req, res) => {
   const service = await ServiceItem.findById(req.params.id);
   if (!service) throw new ApiError(404, 'Service item not found');
 
-  const fields = ['name', 'category', 'price', 'originalPrice', 'time', 'rating', 'description', 'img', 'isActive'];
+  const fields = ['name', 'category', 'section', 'itemType', 'price', 'originalPrice', 'time', 'rating', 'description', 'img', 'inclusions', 'isActive'];
   fields.forEach((field) => {
     if (req.body[field] !== undefined) {
       if (field === 'price' || field === 'originalPrice') {

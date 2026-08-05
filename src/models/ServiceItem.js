@@ -12,6 +12,16 @@ const serviceItemSchema = new mongoose.Schema(
       required: [true, 'Category name is required'],
       trim: true
     },
+    section: {
+      type: String,
+      enum: ['spotlight', 'new_noteworthy', 'most_booked', 'general'],
+      default: 'general'
+    },
+    itemType: {
+      type: String,
+      enum: ['service', 'product'],
+      default: 'service'
+    },
     price: {
       type: Number,
       required: [true, 'Price is required'],
@@ -37,6 +47,10 @@ const serviceItemSchema = new mongoose.Schema(
       type: String,
       default: ''
     },
+    inclusions: {
+      type: [String],
+      default: []
+    },
     isActive: {
       type: Boolean,
       default: true
@@ -46,5 +60,6 @@ const serviceItemSchema = new mongoose.Schema(
 );
 
 serviceItemSchema.index({ isActive: 1, category: 1 });
+serviceItemSchema.index({ section: 1, itemType: 1 });
 
 module.exports = mongoose.model('ServiceItem', serviceItemSchema);
