@@ -299,23 +299,36 @@ const getApprovedProviders = asyncHandler(async (req, res) => {
   const { category } = req.query;
   const filter = { status: 'approved' };
 
-  if (category) {
+  if (category && category !== 'All Services') {
+    const keyword = category.split(/[\s&/]+/)[0];
+
     const cat = await Category.findOne({
       $or: [
         { slug: category },
-        { name: { $regex: category, $options: 'i' } }
+        { slug: { $regex: keyword, $options: 'i' } },
+        { name: { $regex: keyword, $options: 'i' } }
       ]
     }).lean();
+
     if (cat) {
       filter.categories = cat._id;
     }
   }
 
-  const providers = await Provider.find(filter)
+  let providers = await Provider.find(filter)
     .populate('user', 'name email avatar')
     .populate('categories', 'name slug icon')
     .sort({ createdAt: -1 })
     .lean();
+
+  // Fallback to all approved providers if specific filter yielded 0
+  if (providers.length === 0) {
+    providers = await Provider.find({ status: 'approved' })
+      .populate('user', 'name email avatar')
+      .populate('categories', 'name slug icon')
+      .sort({ createdAt: -1 })
+      .lean();
+  }
 
   res.status(200).json({
     success: true,
