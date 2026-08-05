@@ -16,8 +16,10 @@ router.post('/', async (req, res) => {
 
     const locString = location || 'Vijayawada';
     const catString = category || 'General Home Service';
-    const chosenMethod = paymentMethod || 'cod';
-    const paymentStat = chosenMethod === 'cod' ? 'cash_after_service' : 'paid';
+    const rawMethod = String(paymentMethod || 'cod').toLowerCase();
+    const validMethods = ['card', 'upi', 'netbanking', 'cod'];
+    const safeMethod = validMethods.includes(rawMethod) ? rawMethod : 'cod';
+    const paymentStat = safeMethod === 'cod' ? 'cash_after_service' : 'paid';
 
     // 1. Find category doc if exists safely
     let matchedCategoryDoc = null;
@@ -46,19 +48,30 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // 3. Fallback: Find approved provider matching location or category
+    // 3. Fallback: Find approved provider matching category or location
     if (!approvedProvider && matchedCategoryDoc) {
-      approvedProvider = await Provider.findOne({
-        status: 'approved',
-        categories: matchedCategoryDoc._id
-      }).populate('user');
+      try {
+        approvedProvider = await Provider.findOne({
+          status: 'approved',
+          categories: matchedCategoryDoc._id
+        }).populate('user');
+      } catch (e) {
+        approvedProvider = null;
+      }
     }
 
     if (!approvedProvider) {
-      approvedProvider = await Provider.findOne({ status: 'approved' }).populate('user');
+      try {
+        approvedProvider = await Provider.findOne({ status: 'approved' }).populate('user');
+      } catch (e) {
+        approvedProvider = null;
+      }
     }
 
-    // 4. Create Booking
+    // 4. Create Booking safely with numeric price
+    const numPrice = Number(price);
+    const safePrice = (!isNaN(numPrice) && numPrice > 0) ? numPrice : 799;
+
     const booking = await Booking.create({
       customer: req.user?._id || null,
       customerName: customerName || req.user?.name || 'Urban Customer',
@@ -66,39 +79,47 @@ router.post('/', async (req, res) => {
       provider: approvedProvider ? approvedProvider._id : null,
       serviceName: serviceName || 'Home Service Package',
       category: catString,
-      price: price || 799,
+      price: safePrice,
       location: locString,
       date: date || new Date().toISOString().split('T')[0],
       timeSlot: timeSlot || '10:00 AM - 12:00 PM',
       status: approvedProvider ? 'assigned' : 'pending',
-      paymentMethod: chosenMethod,
+      paymentMethod: safeMethod,
       paymentStatus: paymentStat
     });
 
     // 5. Notify the provider safely
     if (approvedProvider) {
-      if (!Array.isArray(approvedProvider.bookingNotifications)) {
-        approvedProvider.bookingNotifications = [];
+      try {
+        if (!Array.isArray(approvedProvider.bookingNotifications)) {
+          approvedProvider.bookingNotifications = [];
+        }
+        approvedProvider.bookingNotifications.unshift({
+          bookingId: booking._id,
+          serviceName: booking.serviceName,
+          category: booking.category,
+          customerName: booking.customerName,
+          customerPhone: booking.customerPhone,
+          location: booking.location,
+          price: booking.price,
+          date: booking.date,
+          timeSlot: booking.timeSlot,
+          createdAt: new Date()
+        });
+        await approvedProvider.save();
+      } catch (e) {
+        console.error('Error updating provider notifications:', e.message);
       }
-      approvedProvider.bookingNotifications.unshift({
-        bookingId: booking._id,
-        serviceName: booking.serviceName,
-        category: booking.category,
-        customerName: booking.customerName,
-        customerPhone: booking.customerPhone,
-        location: booking.location,
-        price: booking.price,
-        date: booking.date,
-        timeSlot: booking.timeSlot,
-        createdAt: new Date()
-      });
-      await approvedProvider.save();
     }
 
     // ⚡ Emit WebSocket push notification to connected partners
-    const io = req.app.get('io');
-    if (io) {
-      io.emit('new_booking', { booking, providerId: approvedProvider?._id });
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('new_booking', { booking, providerId: approvedProvider?._id });
+      }
+    } catch (e) {
+      console.error('Error emitting WebSocket event:', e.message);
     }
 
     res.status(201).json({
@@ -109,7 +130,7 @@ router.post('/', async (req, res) => {
       booking
     });
   } catch (err) {
-    console.error('Error in POST /api/bookings:', err);
+    console.error('Critical Error in POST /api/bookings:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
