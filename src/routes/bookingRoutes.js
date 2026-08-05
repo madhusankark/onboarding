@@ -5,6 +5,8 @@ const { Provider } = require('../models/Provider');
 const protect = require('../middlewares/authMiddleware');
 const Category = require('../models/Category');
 
+const escapeRegex = (str) => String(str || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // @route   POST /api/bookings
 // @desc    Create a new customer service booking & notify nearest provider via WebSockets
 // @access  Public / Protected
@@ -17,19 +19,31 @@ router.post('/', async (req, res) => {
     const chosenMethod = paymentMethod || 'cod';
     const paymentStat = chosenMethod === 'cod' ? 'cash_after_service' : 'paid';
 
-    // 1. Find category doc if exists
-    const matchedCategoryDoc = await Category.findOne({
-      name: { $regex: new RegExp(catString.split(' ')[0], 'i') }
-    });
+    // 1. Find category doc if exists safely
+    let matchedCategoryDoc = null;
+    if (catString) {
+      const keyword = escapeRegex(catString.split(' ')[0]);
+      try {
+        matchedCategoryDoc = await Category.findOne({
+          name: { $regex: new RegExp(keyword, 'i') }
+        });
+      } catch (e) {
+        matchedCategoryDoc = null;
+      }
+    }
 
     // 2. Query for nearest approved provider matching category AND location
     let approvedProvider = null;
     if (matchedCategoryDoc) {
-      approvedProvider = await Provider.findOne({
-        status: 'approved',
-        categories: matchedCategoryDoc._id,
-        serviceLocations: { $regex: new RegExp(locString, 'i') }
-      }).populate('user');
+      try {
+        approvedProvider = await Provider.findOne({
+          status: 'approved',
+          categories: matchedCategoryDoc._id,
+          serviceLocations: { $regex: new RegExp(escapeRegex(locString), 'i') }
+        }).populate('user');
+      } catch (e) {
+        approvedProvider = null;
+      }
     }
 
     // 3. Fallback: Find approved provider matching location or category
@@ -61,8 +75,11 @@ router.post('/', async (req, res) => {
       paymentStatus: paymentStat
     });
 
-    // 5. Notify the provider
+    // 5. Notify the provider safely
     if (approvedProvider) {
+      if (!Array.isArray(approvedProvider.bookingNotifications)) {
+        approvedProvider.bookingNotifications = [];
+      }
       approvedProvider.bookingNotifications.unshift({
         bookingId: booking._id,
         serviceName: booking.serviceName,
@@ -92,123 +109,90 @@ router.post('/', async (req, res) => {
       booking
     });
   } catch (err) {
+    console.error('Error in POST /api/bookings:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
 // @route   GET /api/bookings/my-orders
 // @desc    Get customer's placed orders history
-// @access  Private (Customer)
+// @access  Private (customer)
 router.get('/my-orders', protect, async (req, res) => {
   try {
-    const orders = await Booking.find({
-      $or: [
-        { customer: req.user._id },
-        { customerName: req.user.name }
-      ]
+    const bookings = await Booking.find({
+      $or: [{ customer: req.user._id }, { customerName: req.user.name }]
     })
+      .sort({ createdAt: -1 })
       .populate({
         path: 'provider',
-        populate: { path: 'user', select: 'name email phone avatar' }
+        populate: { path: 'user', select: 'name email avatar' }
       })
-      .sort({ createdAt: -1 });
+      .lean();
 
-    res.json({
-      success: true,
-      orders
-    });
+    res.status(200).json({ success: true, count: bookings.length, bookings });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
 // @route   GET /api/bookings/my-leads
-// @desc    Get job leads assigned to the logged-in approved provider
-// @access  Private (Provider)
+// @desc    Get service provider's assigned job leads
+// @access  Private (provider)
 router.get('/my-leads', protect, async (req, res) => {
   try {
-    const provider = await Provider.findOne({ user: req.user._id });
-    if (!provider) {
-      return res.status(404).json({ success: false, message: 'Provider profile not found.' });
+    const providerDoc = await Provider.findOne({ user: req.user._id }).lean();
+    if (!providerDoc) {
+      return res.status(200).json({ success: true, leads: [] });
     }
 
-    if (provider.status !== 'approved') {
-      return res.json({
-        success: true,
-        isApproved: false,
-        message: 'Your profile is currently under admin verification. Customer job leads will unlock once approved by Admin.',
-        leads: []
-      });
-    }
-
-    const leads = await Booking.find({
-      $or: [
-        { provider: provider._id },
-        { provider: null },
-        { status: 'assigned' },
-        { status: 'pending' }
-      ]
-    })
-      .populate({ path: 'customer', select: 'name email avatar' })
-      .sort({ createdAt: -1 });
-
-    res.json({
-      success: true,
-      isApproved: true,
-      leads
-    });
+    const leads = await Booking.find({ provider: providerDoc._id }).sort({ createdAt: -1 }).lean();
+    res.status(200).json({ success: true, count: leads.length, leads });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
 // @route   PUT /api/bookings/:id/status
-// @desc    Update lead status (accept, complete, cancel, etc.) & emit WebSockets
-// @access  Private (Provider/Admin/Customer)
+// @desc    Update booking work status (assigned -> in_progress -> completed -> cancelled)
+// @access  Private (provider/admin)
 router.put('/:id/status', protect, async (req, res) => {
   try {
     const { status } = req.body;
-    const provider = await Provider.findOne({ user: req.user._id });
     const booking = await Booking.findById(req.params.id);
     if (!booking) {
-      return res.status(404).json({ success: false, message: 'Booking lead not found.' });
+      return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    if (provider) {
-      booking.provider = provider._id;
-    }
     booking.status = status;
     await booking.save();
 
-    // ⚡ Emit WebSocket push notification for status update
     const io = req.app.get('io');
     if (io) {
-      io.emit('booking_status_updated', { bookingId: booking._id, status, booking });
+      io.emit('booking_status_updated', { bookingId: booking._id, status: booking.status });
     }
 
-    res.json({ success: true, message: `Work status updated to ${status}`, booking });
+    res.status(200).json({ success: true, message: `Booking status updated to ${status}`, booking });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
 // @route   PUT /api/bookings/:id/rate
-// @desc    Customer submit 1-5 star rating & review for completed service
-// @access  Private (Customer)
+// @desc    Rate and review completed booking
+// @access  Private (customer)
 router.put('/:id/rate', protect, async (req, res) => {
   try {
     const { rating, review } = req.body;
     const booking = await Booking.findById(req.params.id);
     if (!booking) {
-      return res.status(404).json({ success: false, message: 'Booking not found.' });
+      return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    booking.rating = Number(rating) || 5;
+    booking.rating = Number(rating);
     booking.review = review || '';
-    booking.ratedAt = new Date();
     await booking.save();
 
-    res.json({ success: true, message: 'Thank you for your rating & review!', booking });
+    res.status(200).json({ success: true, message: 'Rating & review submitted successfully', booking });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
