@@ -116,4 +116,9 @@ const providerSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Database Indexes for Fast Search & Filtering
+providerSchema.index({ status: 1, categories: 1 });
+providerSchema.index({ status: 1, serviceLocations: 1 });
+providerSchema.index({ city: 1, status: 1 });
+
 module.exports = { Provider: mongoose.model('Provider', providerSchema), PROVIDER_STATUSES };

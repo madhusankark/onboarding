@@ -39,7 +39,7 @@ const getServices = asyncHandler(async (req, res) => {
   if (count === 0) {
     await ServiceItem.insertMany(DEFAULT_SERVICES);
   }
-  const services = await ServiceItem.find({ isActive: true }).sort({ category: 1, createdAt: -1 });
+  const services = await ServiceItem.find({ isActive: true }).sort({ category: 1, createdAt: -1 }).lean();
   res.status(200).json({ success: true, services });
 });
 
@@ -53,7 +53,7 @@ const getAdminServices = asyncHandler(async (req, res) => {
   if (count === 0) {
     await ServiceItem.insertMany(DEFAULT_SERVICES);
   }
-  const services = await ServiceItem.find({}).sort({ category: 1, createdAt: -1 });
+  const services = await ServiceItem.find({}).sort({ category: 1, createdAt: -1 }).lean();
   res.status(200).json({ success: true, services });
 });
 

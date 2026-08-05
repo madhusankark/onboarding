@@ -286,7 +286,7 @@ const getApplicationStatus = asyncHandler(async (req, res) => {
  * @access  Private (provider)
  */
 const getCategories = asyncHandler(async (req, res) => {
-  const categories = await Category.find({ isActive: true }).sort({ order: 1 });
+  const categories = await Category.find({ isActive: true }).sort({ order: 1 }).lean();
   res.status(200).json({ success: true, categories });
 });
 
@@ -305,7 +305,7 @@ const getApprovedProviders = asyncHandler(async (req, res) => {
         { slug: category },
         { name: { $regex: category, $options: 'i' } }
       ]
-    });
+    }).lean();
     if (cat) {
       filter.categories = cat._id;
     }
@@ -314,7 +314,8 @@ const getApprovedProviders = asyncHandler(async (req, res) => {
   const providers = await Provider.find(filter)
     .populate('user', 'name email avatar')
     .populate('categories', 'name slug icon')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
 
   res.status(200).json({
     success: true,

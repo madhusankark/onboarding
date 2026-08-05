@@ -75,4 +75,7 @@ const bookingSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+bookingSchema.index({ customer: 1, status: 1 });
+bookingSchema.index({ provider: 1, status: 1 });
+
 module.exports = mongoose.model('Booking', bookingSchema);
